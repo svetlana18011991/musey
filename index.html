@@ -1,1 +1,1288 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Виртуальная экскурсия музея</title>
+  <style>
+    :root {
+      --bg: #09111c;
+      --panel: rgba(9, 17, 28, 0.68);
+      --panel-strong: rgba(11, 20, 33, 0.84);
+      --line: rgba(255,255,255,0.12);
+      --text: #eef4ff;
+      --muted: #b9c4d7;
+      --accent: #d4ab58;
+      --accent-soft: rgba(212, 171, 88, 0.16);
+      --danger: #b24b46;
+      --shadow: 0 24px 60px rgba(0,0,0,0.35);
+    }
 
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      font-family: Inter, "Segoe UI", system-ui, -apple-system, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top, rgba(255,255,255,0.07), transparent 26%),
+        linear-gradient(180deg, #0c1523 0%, #09111c 100%);
+      overflow: hidden;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(circle at 15% 20%, rgba(212,171,88,0.18), transparent 22%),
+        radial-gradient(circle at 82% 16%, rgba(80,120,255,0.12), transparent 24%),
+        radial-gradient(circle at 50% 90%, rgba(255,255,255,0.04), transparent 24%);
+      pointer-events: none;
+    }
+
+    .app {
+      position: relative;
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: minmax(280px, 380px) minmax(0, 1fr);
+      gap: 24px;
+      padding: 24px;
+    }
+
+    .panel {
+      position: relative;
+      z-index: 2;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      backdrop-filter: blur(18px);
+      border-radius: 28px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      min-height: calc(100vh - 48px);
+    }
+
+    .brand {
+      padding: 24px 24px 16px;
+      border-bottom: 1px solid var(--line);
+      background:
+        linear-gradient(135deg, rgba(255,255,255,0.08), transparent 55%),
+        linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0));
+    }
+
+    .brand__eyebrow {
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: #f6ddb0;
+      font-size: 12px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+
+    .brand h1 {
+      margin: 14px 0 10px;
+      font-size: clamp(28px, 4vw, 42px);
+      line-height: 1.02;
+    }
+
+    .brand p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .status {
+      display: flex;
+      gap: 12px;
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .status__card {
+      flex: 1;
+      padding: 14px;
+      border-radius: 20px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .status__label {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .status__value {
+      font-size: 22px;
+      font-weight: 700;
+    }
+
+    .scene-info {
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      min-height: 0;
+      overflow: auto;
+    }
+
+    .tag {
+      align-self: flex-start;
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.06);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      color: #f4f7ff;
+    }
+
+    .scene-title {
+      margin: 0;
+      font-size: clamp(24px, 3vw, 36px);
+      line-height: 1.08;
+    }
+
+    .scene-subtitle {
+      margin: 0;
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1.55;
+    }
+
+    .meta {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(2, minmax(0,1fr));
+    }
+
+    .meta__item {
+      padding: 14px;
+      border-radius: 18px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.04);
+    }
+
+    .meta__label {
+      color: var(--muted);
+      font-size: 12px;
+      display: block;
+      margin-bottom: 5px;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
+
+    .meta__value {
+      font-weight: 700;
+      line-height: 1.4;
+    }
+
+    .note-card, .objects-card, .menu-card {
+      padding: 18px;
+      border-radius: 22px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.04);
+    }
+
+    .section-label {
+      margin: 0 0 10px;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: #f6ddb0;
+    }
+
+    .note-card p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.65;
+    }
+
+    .objects-list {
+      margin: 0;
+      padding-left: 18px;
+      display: grid;
+      gap: 8px;
+      color: var(--text);
+    }
+
+    .objects-list li {
+      line-height: 1.45;
+    }
+
+    .menu-card {
+      padding-right: 10px;
+      display: flex;
+      flex-direction: column;
+      min-height: 180px;
+    }
+
+    .menu-list {
+      margin: 0;
+      padding: 0 8px 0 0;
+      list-style: none;
+      display: grid;
+      gap: 8px;
+      overflow: auto;
+    }
+
+    .menu-btn {
+      width: 100%;
+      text-align: left;
+      border: 1px solid rgba(255,255,255,0.07);
+      background: rgba(255,255,255,0.04);
+      color: var(--text);
+      border-radius: 16px;
+      padding: 12px 14px;
+      cursor: pointer;
+      transition: transform .2s ease, background .2s ease, border-color .2s ease;
+    }
+
+    .menu-btn:hover,
+    .menu-btn:focus-visible {
+      transform: translateX(3px);
+      background: rgba(255,255,255,0.08);
+      border-color: rgba(255,255,255,0.16);
+      outline: none;
+    }
+
+    .menu-btn.active {
+      background: linear-gradient(135deg, rgba(212,171,88,0.23), rgba(255,255,255,0.09));
+      border-color: rgba(212,171,88,0.35);
+    }
+
+    .menu-btn small {
+      display: block;
+      margin-top: 3px;
+      color: var(--muted);
+    }
+
+    .stage {
+      position: relative;
+      min-height: calc(100vh - 48px);
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 18px;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      padding: 18px 22px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      backdrop-filter: blur(18px);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      z-index: 2;
+    }
+
+    .topbar__left {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      min-width: 0;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.08);
+      white-space: nowrap;
+    }
+
+    .progress-wrap {
+      flex: 1;
+      min-width: 140px;
+    }
+
+    .progress-label {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 8px;
+    }
+
+    .progress-bar {
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.08);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .progress-bar span {
+      display: block;
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #c18a28, #f2d190);
+      border-radius: inherit;
+      transition: width .45s ease;
+    }
+
+    .hero {
+      position: relative;
+      min-height: 0;
+      border-radius: 32px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      background: #050a12;
+      box-shadow: var(--shadow);
+    }
+
+    .hero__backdrop,
+    .hero__image {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: opacity .6s ease, transform .9s ease;
+      user-select: none;
+      -webkit-user-drag: none;
+    }
+
+    .hero__backdrop {
+      filter: blur(26px) saturate(1.1) brightness(.55);
+      transform: scale(1.08);
+      opacity: .88;
+    }
+
+    .hero__image {
+      object-fit: contain;
+      padding: 38px;
+      transform-origin: center center;
+      animation: kenburns 14s ease both;
+    }
+
+    .hero__overlay {
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at center, transparent 35%, rgba(0,0,0,0.22) 100%),
+        linear-gradient(180deg, rgba(0,0,0,0.12), rgba(0,0,0,0.32));
+      pointer-events: none;
+    }
+
+    .scene-caption {
+      position: absolute;
+      left: 28px;
+      right: 28px;
+      bottom: 28px;
+      z-index: 2;
+      padding: 18px 20px;
+      border-radius: 24px;
+      background: rgba(10,17,27,0.62);
+      border: 1px solid rgba(255,255,255,0.1);
+      backdrop-filter: blur(12px);
+      max-width: min(760px, calc(100% - 56px));
+    }
+
+    .scene-caption h2 {
+      margin: 0 0 8px;
+      font-size: clamp(24px, 3.4vw, 46px);
+      line-height: 1.08;
+    }
+
+    .scene-caption p {
+      margin: 0;
+      color: #d7dfed;
+      line-height: 1.6;
+    }
+
+    .controls {
+      display: flex;
+      gap: 12px;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 18px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      backdrop-filter: blur(18px);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      z-index: 2;
+    }
+
+    .controls__group {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      appearance: none;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.06);
+      color: var(--text);
+      border-radius: 16px;
+      padding: 12px 16px;
+      cursor: pointer;
+      font: inherit;
+      font-weight: 700;
+      transition: transform .2s ease, background .2s ease, border-color .2s ease;
+    }
+
+    button:hover,
+    button:focus-visible {
+      transform: translateY(-1px);
+      background: rgba(255,255,255,0.1);
+      border-color: rgba(255,255,255,0.2);
+      outline: none;
+    }
+
+    .button-accent {
+      background: linear-gradient(135deg, rgba(193,138,40,0.95), rgba(242,209,144,0.92));
+      color: #26180a;
+      border-color: rgba(255,255,255,0.16);
+    }
+
+    .button-ghost {
+      background: rgba(255,255,255,0.02);
+    }
+
+    .intro {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background:
+        linear-gradient(180deg, rgba(5,10,18,0.2), rgba(5,10,18,0.82)),
+        radial-gradient(circle at top, rgba(212,171,88,0.16), transparent 38%),
+        #050a12;
+      backdrop-filter: blur(10px);
+      transition: opacity .5s ease, visibility .5s ease;
+    }
+
+    .intro.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .intro__card {
+      max-width: 860px;
+      width: 100%;
+      padding: clamp(24px, 4vw, 42px);
+      border-radius: 32px;
+      background: rgba(8,14,24,0.8);
+      border: 1px solid rgba(255,255,255,0.1);
+      box-shadow: var(--shadow);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .intro__card::before {
+      content: "";
+      position: absolute;
+      inset: -25% auto auto -10%;
+      width: 360px;
+      height: 360px;
+      background: radial-gradient(circle, rgba(212,171,88,0.24), transparent 60%);
+      pointer-events: none;
+    }
+
+    .intro h2 {
+      margin: 12px 0 10px;
+      font-size: clamp(34px, 6vw, 68px);
+      line-height: .95;
+      max-width: 12ch;
+    }
+
+    .intro p {
+      margin: 0 0 20px;
+      max-width: 56ch;
+      color: var(--muted);
+      font-size: 18px;
+      line-height: 1.7;
+    }
+
+    .tips {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin: 24px 0 30px;
+    }
+
+    .tip {
+      border-radius: 20px;
+      padding: 16px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.07);
+    }
+
+    .tip strong {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 15px;
+    }
+
+    .tip span {
+      color: var(--muted);
+      line-height: 1.5;
+      font-size: 14px;
+    }
+
+    .fineprint {
+      margin-top: 14px;
+      color: rgba(255,255,255,0.48);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    @keyframes kenburns {
+      from { transform: scale(1.01); }
+      to   { transform: scale(1.055); }
+    }
+
+    @media (max-width: 1180px) {
+      .app {
+        grid-template-columns: 1fr;
+        padding: 18px;
+      }
+
+      .sidebar, .stage {
+        min-height: auto;
+      }
+
+      .sidebar {
+        min-height: auto;
+      }
+
+      .stage {
+        min-height: calc(100vh - 36px);
+      }
+
+      .hero {
+        min-height: 54vh;
+      }
+    }
+
+    @media (max-width: 760px) {
+      html, body {
+        overflow: auto;
+      }
+
+      .app {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .sidebar,
+      .stage,
+      .hero {
+        min-height: auto;
+      }
+
+      .controls,
+      .topbar {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .topbar__left {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .meta {
+        grid-template-columns: 1fr;
+      }
+
+      .tips {
+        grid-template-columns: 1fr;
+      }
+
+      .scene-caption {
+        position: static;
+        margin: 16px;
+        max-width: none;
+      }
+
+      .hero__image {
+        position: relative;
+        inset: auto;
+        height: auto;
+        min-height: 320px;
+        padding: 22px;
+      }
+
+      .hero__backdrop,
+      .hero__overlay {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="intro" id="intro">
+    <div class="intro__card">
+      <div class="brand__eyebrow">Виртуальная экскурсия</div>
+      <h2>Музейный маршрут в формате wow</h2>
+      <p>
+        Это готовый статический сайт для GitHub Pages. Он собран по последовательности кадров, меткам
+        «следующий шаг», «приближение» и комментариям из вашего документа. Дальше можно только
+        донастроить тексты, добавить аудио или расставить точные хотспоты поверх изображений.
+      </p>
+      <div class="tips">
+        <div class="tip"><strong>→ Навигация</strong><span>Кнопки, стрелки клавиатуры и автопоказ работают сразу после запуска.</span></div>
+        <div class="tip"><strong>⤢ Полный экран</strong><span>Открывает экскурсию как полноценный спецпроект, а не набор картинок.</span></div>
+        <div class="tip"><strong>✦ Масштаб и ритм</strong><span>Плавные переходы и приближения делают обычные фото более живыми.</span></div>
+      </div>
+      <button class="button-accent" id="startTour">Начать экскурсию</button>
+      <div class="fineprint">
+        Подсказка: этот файл рассчитан на размещение в корне репозитория вместе с папкой <code>assets</code>.
+      </div>
+    </div>
+  </div>
+
+  <main class="app">
+    <aside class="panel sidebar">
+      <section class="brand">
+        <div class="brand__eyebrow">GitHub Pages • museum tour</div>
+        <h1>Центр патриотического наследия Сургута</h1>
+        <p>
+          Статическая веб-экскурсия с кинематографичной подачей, прогрессом маршрута
+          и блоками приближений для витрин и артефактов.
+        </p>
+      </section>
+
+      <section class="status">
+        <div class="status__card">
+          <span class="status__label">Кадр</span>
+          <span class="status__value" id="sceneCounter">1 / 37</span>
+        </div>
+        <div class="status__card">
+          <span class="status__label">Режим</span>
+          <span class="status__value" id="modeValue">Локация</span>
+        </div>
+      </section>
+
+      <section class="scene-info">
+        <span class="tag" id="sceneType">Локация</span>
+        <h2 class="scene-title" id="sceneTitle">Локация 1</h2>
+        <p class="scene-subtitle" id="sceneSubtitle">Вход в музей</p>
+
+        <div class="meta">
+          <div class="meta__item">
+            <span class="meta__label">Текущий шаг</span>
+            <span class="meta__value" id="stepName">Вход в музей</span>
+          </div>
+          <div class="meta__item">
+            <span class="meta__label">Управление</span>
+            <span class="meta__value">← / → • Enter • Space</span>
+          </div>
+        </div>
+
+        <article class="note-card">
+          <h3 class="section-label">Сценарная заметка</h3>
+          <p id="sceneNote"></p>
+        </article>
+
+        <article class="objects-card hidden" id="objectsCard">
+          <h3 class="section-label">Экспонаты / акценты</h3>
+          <ol class="objects-list" id="objectsList"></ol>
+        </article>
+
+        <article class="menu-card">
+          <h3 class="section-label">Быстрый переход</h3>
+          <ul class="menu-list" id="menuList"></ul>
+        </article>
+      </section>
+    </aside>
+
+    <section class="stage">
+      <header class="topbar">
+        <div class="topbar__left">
+          <div class="pill" id="pillLabel">Локация</div>
+          <div class="progress-wrap">
+            <div class="progress-label">
+              <span>Маршрут экскурсии</span>
+              <span id="progressText">1 из 37</span>
+            </div>
+            <div class="progress-bar"><span id="progressBar"></span></div>
+          </div>
+        </div>
+        <div class="hint">Нажми F или кнопку ниже для полноэкранного просмотра</div>
+      </header>
+
+      <article class="hero panel">
+        <img class="hero__backdrop" id="backdropImage" alt="" />
+        <img class="hero__image" id="mainImage" alt="Текущий кадр экскурсии" />
+        <div class="hero__overlay"></div>
+        <div class="scene-caption">
+          <h2 id="captionTitle">Локация 1 — Вход в музей</h2>
+          <p id="captionText">Общий план входа в музей.</p>
+        </div>
+      </article>
+
+      <footer class="controls">
+        <div class="controls__group">
+          <button class="button-ghost" id="prevBtn">← Назад</button>
+          <button class="button-accent" id="nextBtn">Дальше →</button>
+        </div>
+        <div class="controls__group">
+          <button id="autoplayBtn">Автопоказ: выкл</button>
+          <button id="fullscreenBtn">Полный экран</button>
+          <button id="restartBtn">С начала</button>
+        </div>
+      </footer>
+    </section>
+  </main>
+
+  <script>
+    const scenes = [
+  {
+    "title": "Локация 1",
+    "subtitle": "Вход в музей",
+    "type": "Локация",
+    "image": "assets/image1.png",
+    "note": "Общий план входа в музей «Центр патриотического наследия Сургута»."
+  },
+  {
+    "title": "Локация 1",
+    "subtitle": "Подход ко входу",
+    "type": "Приближение",
+    "image": "assets/image2.png",
+    "note": "Ближе к двери музея — как будто зритель подходит ко входу."
+  },
+  {
+    "title": "Локация 2",
+    "subtitle": "Вход в помещение выставки",
+    "type": "Локация",
+    "image": "assets/image3.png",
+    "note": "Старт внутри экспозиции."
+  },
+  {
+    "title": "Переход",
+    "subtitle": "Следующий шаг",
+    "type": "Переход",
+    "image": "assets/image4.png",
+    "note": "Плавный переход к следующему стенду."
+  },
+  {
+    "title": "Локация 3",
+    "subtitle": "Карта СССР в 1941 году",
+    "type": "Локация",
+    "image": "assets/image5.png",
+    "note": "Фокус на карте СССР 1941 года."
+  },
+  {
+    "title": "Локация 4",
+    "subtitle": "Сургутский район",
+    "type": "Локация",
+    "image": "assets/image6.png",
+    "note": "Переход к стенду о Сургутском районе."
+  },
+  {
+    "title": "Переход",
+    "subtitle": "Следующий шаг",
+    "type": "Переход",
+    "image": "assets/image7.png",
+    "note": "Движение вдоль экспозиции."
+  },
+  {
+    "title": "Локация 5",
+    "subtitle": "Село Сургут",
+    "type": "Локация",
+    "image": "assets/image8.png",
+    "note": "Стенд о селе Сургут."
+  },
+  {
+    "title": "Переход",
+    "subtitle": "Следующий шаг",
+    "type": "Переход",
+    "image": "assets/image7.png",
+    "note": "Возвращение к маршруту перед следующей остановкой."
+  },
+  {
+    "title": "Локация 6",
+    "subtitle": "Швейная машинка",
+    "type": "Локация",
+    "image": "assets/image9.png",
+    "note": "Нужен акцент на зелёной табличке: «Машинка швейная “Зингер” класс 22 и 28...»."
+  },
+  {
+    "title": "Переход",
+    "subtitle": "Следующий шаг",
+    "type": "Переход",
+    "image": "assets/image7.png",
+    "note": "Переход к разделу «22 июня 1941 года»."
+  },
+  {
+    "title": "Локация 7",
+    "subtitle": "22 июня 1941 года",
+    "type": "Локация",
+    "image": "assets/image10.png",
+    "note": "Основной экран раздела. В документе отмечено, что на этой локации нужен акцент примерно на 1 минуту."
+  },
+  {
+    "title": "Приближение",
+    "subtitle": "Детали экспозиции",
+    "type": "Приближение",
+    "image": "assets/image11.png",
+    "note": "Крупный план с предметами по номерам.",
+    "items": [
+      "Колодки для изготовления обуви",
+      "Колодки для детской обуви на правую и левую ногу",
+      "Шило сапожников",
+      "Шило швейное",
+      "Справочник колхозного конюха",
+      "Брошюра о плетении из соломы, камыша и ситника"
+    ]
+  },
+  {
+    "title": "Приближение",
+    "subtitle": "Витрина с предметами",
+    "type": "Приближение",
+    "image": "assets/image12.png",
+    "note": "Второй крупный план для этой же локации.",
+    "items": [
+      "Крупные планы предметов из раздела «22 июня 1941 года»"
+    ]
+  },
+  {
+    "title": "Переход",
+    "subtitle": "Следующий шаг",
+    "type": "Переход",
+    "image": "assets/image10.png",
+    "note": "Возврат к общей сцене перед следующим приближением."
+  },
+  {
+    "title": "Приближение",
+    "subtitle": "Документы и охотничьи предметы",
+    "type": "Приближение",
+    "image": "assets/image13.png",
+    "items": [
+      "Постановление №1031 Экономического Совета при Совнаркоме СССР о ценах на пушнину и меховое сырьё, 1939",
+      "Выписка из протокола №58 о назначении Н. С. Черемнова, 1944",
+      "Сумка охотничья",
+      "Пороховница",
+      "Нож охотничий в ножнах",
+      "Форма для литья пуль"
+    ]
+  },
+  {
+    "title": "Переход",
+    "subtitle": "Следующий шаг",
+    "type": "Переход",
+    "image": "assets/image14.png",
+    "note": "Переход к теме охотничьего промысла."
+  },
+  {
+    "title": "Локация 8",
+    "subtitle": "Охотничий промысел",
+    "type": "Локация",
+    "image": "assets/image15.png",
+    "note": "Общий план раздела об охотничьем промысле."
+  },
+  {
+    "title": "Приближение",
+    "subtitle": "Витрина с экспонатами",
+    "type": "Приближение",
+    "image": "assets/image16.png",
+    "items": [
+      "Ондатра — чучело",
+      "Белка обыкновенная — шкура",
+      "Соболь — шкура",
+      "Капкан, 2-я половина XX в.",
+      "Норка американская — чучело",
+      "Куница каменная — шкура",
+      "Выдра — шкура",
+      "Лисица обыкновенная — шкура"
+    ]
+  },
+  {
+    "title": "Переход",
+    "subtitle": "Следующий шаг",
+    "type": "Переход",
+    "image": "assets/image17.png",
+    "note": "Дальше по маршруту — к сельскому хозяйству."
+  },
+  {
+    "title": "Локация 9",
+    "subtitle": "Сельское хозяйство",
+    "type": "Локация",
+    "image": "assets/image18.png",
+    "note": "Общий вид тематического раздела."
+  },
+  {
+    "title": "Приближение",
+    "subtitle": "Инструменты",
+    "type": "Приближение",
+    "image": "assets/image19.png",
+    "items": [
+      "Коса для сена",
+      "Серп",
+      "Вилы",
+      "Грабли для сенокоса",
+      "Рубанок",
+      "Скребок, 1-я половина XX в."
+    ]
+  },
+  {
+    "title": "Переход",
+    "subtitle": "Следующий шаг",
+    "type": "Переход",
+    "image": "assets/image20.png",
+    "note": "Переход в сторону рыболовного блока экспозиции."
+  },
+  {
+    "title": "Переход",
+    "subtitle": "Следующий шаг",
+    "type": "Переход",
+    "image": "assets/image21.png",
+    "note": "Ещё один ракурс движения по залу."
+  },
+  {
+    "title": "Переход",
+    "subtitle": "Следующий шаг",
+    "type": "Переход",
+    "image": "assets/image20.png",
+    "note": "Повторное смещение по маршруту."
+  },
+  {
+    "title": "Приближение",
+    "subtitle": "Рыболовные предметы",
+    "type": "Приближение",
+    "image": "assets/image22.png",
+    "items": [
+      "Сачок для ловли рыбы",
+      "Сачок для ловли рыбы",
+      "Багор",
+      "Поплавок на связке",
+      "Кибас-грузило на связке",
+      "Сеть рыболовная, 1-я половина XX в."
+    ]
+  },
+  {
+    "title": "Переход",
+    "subtitle": "Следующий шаг",
+    "type": "Переход",
+    "image": "assets/image20.png",
+    "note": "Выход к следующему разделу экскурсии."
+  },
+  {
+    "title": "Локация 10",
+    "subtitle": "1941–1945 года",
+    "type": "Локация",
+    "image": "assets/image23.png",
+    "note": "Общий план раздела о военном времени."
+  },
+  {
+    "title": "Приближение",
+    "subtitle": "Документы и книги",
+    "type": "Приближение",
+    "image": "assets/image24.png",
+    "items": [
+      "Облигация Второго Государственного военного займа СССР, 1943 (копия)",
+      "Облигация Третьего Государственного военного займа СССР, 1944 (копия)",
+      "Билет денежно-вещевой лотереи, 1941 (копия)",
+      "Билет денежно-вещевой лотереи, 1944 (копия)",
+      "Кошелёк, 1940-е",
+      "Монеты 1, 2, 3, 15, 20 копеек, 1940–1943",
+      "Книга «Русские народные сказки», 1941",
+      "Книга «Три товарища», Н. Баканов, 1942",
+      "Удостоверение И. А. Лоретус об эвакуации из Ленинграда, 1942 (копия)"
+    ]
+  },
+  {
+    "title": "Переход",
+    "subtitle": "Следующий шаг",
+    "type": "Переход",
+    "image": "assets/image25.png",
+    "note": "Переход к блоку об образовании."
+  },
+  {
+    "title": "Локация 11",
+    "subtitle": "Образование",
+    "type": "Локация",
+    "image": "assets/image26.png",
+    "items": [
+      "Лампа керосиновая, 1940-е",
+      "Чернильница",
+      "Перьевая ручка",
+      "Очки (фрагмент)",
+      "Горн пионерский",
+      "Барабан",
+      "Барабанные палочки",
+      "Тетрадь по геометрии Конева Юрия, 1949"
+    ]
+  },
+  {
+    "title": "Переход",
+    "subtitle": "Следующий шаг",
+    "type": "Переход",
+    "image": "assets/image27.png",
+    "note": "Плавный сдвиг к следующему ракурсу."
+  },
+  {
+    "title": "Переход",
+    "subtitle": "Следующий шаг",
+    "type": "Переход",
+    "image": "assets/image25.png",
+    "note": "Возврат к общему виду перед финальным приближением."
+  },
+  {
+    "title": "Приближение",
+    "subtitle": "Финальное приближение",
+    "type": "Приближение",
+    "image": "assets/image28.png",
+    "note": "В документе отмечено: здесь идёт приближение."
+  },
+  {
+    "title": "Отдельное нажатие",
+    "subtitle": "Рамка",
+    "type": "Деталь",
+    "image": "assets/image29.png",
+    "note": "В документе отмечено отдельное нажатие на рамку."
+  },
+  {
+    "title": "Переход",
+    "subtitle": "Следующий шаг",
+    "type": "Переход",
+    "image": "assets/image25.png",
+    "note": "Последний шаг перед завершением."
+  },
+  {
+    "title": "Конец экскурсии",
+    "subtitle": "Спасибо за просмотр",
+    "type": "Финал",
+    "image": "assets/image1.png",
+    "note": "Финальный экран. Можно заменить на логотип, экран благодарности или QR-код."
+  }
+];
+
+    const state = {
+      index: 0,
+      autoplay: false,
+      timer: null
+    };
+
+    const intro = document.getElementById("intro");
+    const startTour = document.getElementById("startTour");
+    const mainImage = document.getElementById("mainImage");
+    const backdropImage = document.getElementById("backdropImage");
+    const sceneCounter = document.getElementById("sceneCounter");
+    const modeValue = document.getElementById("modeValue");
+    const sceneType = document.getElementById("sceneType");
+    const sceneTitle = document.getElementById("sceneTitle");
+    const sceneSubtitle = document.getElementById("sceneSubtitle");
+    const stepName = document.getElementById("stepName");
+    const sceneNote = document.getElementById("sceneNote");
+    const objectsCard = document.getElementById("objectsCard");
+    const objectsList = document.getElementById("objectsList");
+    const menuList = document.getElementById("menuList");
+    const pillLabel = document.getElementById("pillLabel");
+    const progressText = document.getElementById("progressText");
+    const progressBar = document.getElementById("progressBar");
+    const captionTitle = document.getElementById("captionTitle");
+    const captionText = document.getElementById("captionText");
+    const autoplayBtn = document.getElementById("autoplayBtn");
+    const fullscreenBtn = document.getElementById("fullscreenBtn");
+    const restartBtn = document.getElementById("restartBtn");
+    const prevBtn = document.getElementById("prevBtn");
+    const nextBtn = document.getElementById("nextBtn");
+
+    function buildMenu() {
+      menuList.innerHTML = "";
+      scenes.forEach((scene, index) => {
+        const item = document.createElement("li");
+        const button = document.createElement("button");
+        button.className = "menu-btn";
+        button.innerHTML = `<strong>${index + 1}. ${scene.title}</strong><small>${scene.subtitle}</small>`;
+        button.addEventListener("click", () => {
+          goTo(index);
+          stopAutoplay();
+        });
+        item.appendChild(button);
+        menuList.appendChild(item);
+      });
+    }
+
+    function updateActiveMenu() {
+      [...menuList.querySelectorAll(".menu-btn")].forEach((button, index) => {
+        button.classList.toggle("active", index === state.index);
+      });
+    }
+
+    function resetKenBurns() {
+      mainImage.style.animation = "none";
+      mainImage.offsetHeight;
+      mainImage.style.animation = "kenburns 14s ease both";
+    }
+
+    function renderScene() {
+      const scene = scenes[state.index];
+      const progress = ((state.index + 1) / scenes.length) * 100;
+
+      mainImage.style.opacity = "0";
+      mainImage.style.transform = "scale(1.02)";
+
+      setTimeout(() => {
+        mainImage.src = scene.image;
+        backdropImage.src = scene.image;
+        mainImage.alt = `${scene.title} — ${scene.subtitle}`;
+        backdropImage.alt = "";
+
+        sceneCounter.textContent = `${state.index + 1} / ${scenes.length}`;
+        modeValue.textContent = scene.type;
+        sceneType.textContent = scene.type;
+        sceneTitle.textContent = scene.title;
+        sceneSubtitle.textContent = scene.subtitle;
+        stepName.textContent = scene.subtitle;
+        sceneNote.textContent = scene.note || "Для этого кадра заметка не указана.";
+        pillLabel.textContent = scene.type;
+        progressText.textContent = `${state.index + 1} из ${scenes.length}`;
+        progressBar.style.width = `${progress}%`;
+        captionTitle.textContent = `${scene.title} — ${scene.subtitle}`;
+        captionText.textContent = scene.note || "Продолжение маршрута по музею.";
+
+        if (scene.items && scene.items.length) {
+          objectsCard.classList.remove("hidden");
+          objectsList.innerHTML = scene.items.map(item => `<li>${item}</li>`).join("");
+        } else {
+          objectsCard.classList.add("hidden");
+          objectsList.innerHTML = "";
+        }
+
+        updateActiveMenu();
+        resetKenBurns();
+        mainImage.style.opacity = "1";
+      }, 160);
+    }
+
+    function goTo(index) {
+      state.index = (index + scenes.length) % scenes.length;
+      renderScene();
+    }
+
+    function nextScene() {
+      goTo(state.index + 1);
+    }
+
+    function prevScene() {
+      goTo(state.index - 1);
+    }
+
+    function startAutoplay() {
+      state.autoplay = true;
+      autoplayBtn.textContent = "Автопоказ: вкл";
+      clearInterval(state.timer);
+      state.timer = setInterval(nextScene, 5800);
+    }
+
+    function stopAutoplay() {
+      state.autoplay = false;
+      autoplayBtn.textContent = "Автопоказ: выкл";
+      clearInterval(state.timer);
+      state.timer = null;
+    }
+
+    function toggleAutoplay() {
+      if (state.autoplay) {
+        stopAutoplay();
+      } else {
+        startAutoplay();
+      }
+    }
+
+    async function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen?.();
+      } else {
+        await document.exitFullscreen?.();
+      }
+    }
+
+    startTour.addEventListener("click", () => {
+      intro.classList.add("hidden");
+      renderScene();
+    });
+
+    nextBtn.addEventListener("click", () => {
+      nextScene();
+      stopAutoplay();
+    });
+
+    prevBtn.addEventListener("click", () => {
+      prevScene();
+      stopAutoplay();
+    });
+
+    autoplayBtn.addEventListener("click", toggleAutoplay);
+    fullscreenBtn.addEventListener("click", toggleFullscreen);
+    restartBtn.addEventListener("click", () => {
+      goTo(0);
+      stopAutoplay();
+      intro.classList.remove("hidden");
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "ArrowRight") {
+        nextScene();
+        stopAutoplay();
+      }
+      if (event.key === "ArrowLeft") {
+        prevScene();
+        stopAutoplay();
+      }
+      if (event.key === " " || event.key === "Spacebar") {
+        event.preventDefault();
+        toggleAutoplay();
+      }
+      if (event.key === "Enter") {
+        intro.classList.add("hidden");
+        renderScene();
+      }
+      if (event.key.toLowerCase() === "f") {
+        toggleFullscreen();
+      }
+      if (event.key.toLowerCase() === "r") {
+        goTo(0);
+        stopAutoplay();
+      }
+    });
+
+    buildMenu();
+    renderScene();
+  </script>
+</body>
+</html>
